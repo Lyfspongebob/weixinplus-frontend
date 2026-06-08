@@ -139,15 +139,12 @@ export default function Sidebar({
     try {
         await friendApi.deleteFriend(relationshipId, user.userId)
         
-        // ====== 新增：删除与该好友的私聊会话 ======
-        // 查找与该好友的私聊会话
+        // 从 store 中移除与该好友的会话（后端已删除双方的会话记录）
         const sessions = useChatStore.getState().sessions
         const targetSession = sessions.find(s => 
             s.sessionType === 1 && s.targetUserId === friendUserId
         )
         if (targetSession) {
-            await sessionApi.deleteSession(targetSession.sessionId, user.userId)
-            // 从 store 中移除
             useChatStore.getState().setSessions(
                 sessions.filter(s => s.sessionId !== targetSession.sessionId)
             )
@@ -157,12 +154,14 @@ export default function Sidebar({
                 useChatStore.getState().setMessages([])
             }
         }
-        // ====== 新增结束 ======
         
         const groupsRes = await friendApi.getGroups(user.userId)
         setFriendGroups(groupsRes.data)
-    } catch (err) {
+        alert('已删除好友')
+    } catch (err: any) {
         console.error('Failed to delete friend', err)
+        const errorMsg = err?.response?.data?.message || err?.message || '删除好友失败'
+        alert(errorMsg)
     }
     setShowFriendMenu(null)
   }

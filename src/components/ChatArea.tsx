@@ -9,7 +9,7 @@ import type { SessionItem, UserInfo, MessageItem, UploadResult, GroupInfo } from
 import { formatTime, getFileIcon } from '../utils/format'
 import {
   Send, Paperclip, Mic, Square, Download, Image, FileText, ChevronDown,
-  X, Info, Users,
+  X, Info, Users, Smile,
 } from 'lucide-react'
 
 interface ChatAreaProps {
@@ -31,9 +31,11 @@ export default function ChatArea({ session, currentUser, onSendMessage, onFileUp
   const [showDateFilter, setShowDateFilter] = useState(false)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [filteredMessages, setFilteredMessages] = useState<MessageItem[] | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
   const recordingTimerRef = useRef<ReturnType<typeof setInterval>>()
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -235,6 +237,61 @@ const isNearBottom = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
+  // ====== Emoji 选择器 ======
+  // 常用 Emoji 列表
+  const emojiList = [
+    '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊',
+    '😋', '😎', '😍', '🥰', '😘', '😗', '😙', '😚', '🙂', '🤗',
+    '🤩', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥',
+    '😮', '🤐', '😯', '😪', '😫', '😴', '😌', '😛', '😜', '😝',
+    '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲', '☹️', '🙁',
+    '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+    '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡',
+    '😠', '🤬', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌',
+    '👐', '🤲', '🤝', '🙏', '✌️', '🤞', '🤟', '🤘', '🤙', '👋',
+    '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '💪', '🦵', '🦶',
+    '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄',
+    '💋', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎',
+    '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟',
+    '🎉', '🎊', '🎈', '🎁', '🎀', '🪄', '✨', '🌟', '⭐', '🌙',
+    '☀️', '🌈', '☁️', '⛅', '⚡', '🔥', '💥', '💫', '💦', '💨',
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+    '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆',
+    '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋',
+    '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🦂', '🐢', '🐍', '🦎',
+    '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟',
+    '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐',
+    '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑',
+    '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🧄', '🧅', '🥔',
+    '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🥞', '🧇', '🥓', '🥩',
+    '🍔', '🍟', '🍕', '🌭', '🥪', '🌮', '🌯', '🥙', '🧆', '🥗',
+    '🍿', '🧈', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝',
+    '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪',
+    '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+    '🚜', '🏍️', '🛵', '🚲', '🛴', '🚨', '🚔', '🚍', '🚘', '🚖',
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+    '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳',
+    '🎂', '🍰', '🧁', '🥧', '🍦', '🍨', '🍩', '🍪', '🍫', '🍬',
+    '☕', '🍵', '🧃', '🥤', '🧊', '🍶', '🍺', '🍻', '🥂', '🍷',
+  ]
+
+  // 点击外部关闭 Emoji 选择器
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // 插入表情到输入框
+  const handleEmojiSelect = (emoji: string) => {
+    setInputText((prev) => prev + emoji)
+    setShowEmojiPicker(false)
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Chat Header */}
@@ -392,6 +449,33 @@ const isNearBottom = () => {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Emoji picker */}
+            <div className="relative" ref={emojiPickerRef}>
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+                title="表情"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-lg border p-2 z-10 w-[320px]">
+                  <div className="max-h-[200px] overflow-y-auto grid grid-cols-10 gap-1">
+                    {emojiList.map((emoji, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleEmojiSelect(emoji)}
+                        className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-lg"
+                        title={emoji}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* File menu */}
             <div className="relative">
               <button

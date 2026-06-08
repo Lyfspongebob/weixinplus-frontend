@@ -170,8 +170,11 @@ export default function ChatPage() {
       // Refresh sessions for last message preview
       const sessionsRes = await sessionApi.getUserSessions(user.userId)
       setSessions(sessionsRes.data)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to send message', err)
+      // 给用户提示错误信息
+      const errorMsg = err?.response?.data?.message || err?.message || '发送消息失败'
+      alert(errorMsg)
     }
   }
 
